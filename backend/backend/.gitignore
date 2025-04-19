@@ -1,0 +1,19 @@
+.env
+
+# Python virtual environment
+venv/
+Flack_chatbot/backend/venv/
+
+# Node.js (if applicable)
+node_modules/
+
+# OS or editor files
+.DS_Store
+Thumbs.db
+
+# Python bytecode
+__pycache__/
+*.pyc
+
+# Frontend if it's a separate repo or not to be tracked
+Flack_chatbot/frontend/

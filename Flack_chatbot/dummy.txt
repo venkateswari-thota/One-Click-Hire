@@ -1,0 +1,26 @@
+Flask_chatbot/
+│── backend/                # Flask backend
+│   ├── app.py              # Main Flask app
+│   ├── model.py            # Gemini model integration
+│   ├── responses.py        # Predefined responses
+│   ├── requirements.txt    # Python dependencies
+│   ├── config.py           # API Key and configuration
+│   ├── venv/               # Virtual environment (optional)
+│   
+│
+│── frontend/               # React frontend
+│   ├── public/             # Public assets
+│   ├── src/                # Main source code
+|   |   |__App.js
+|   |   |__ App.css 
+|   |   |__App.text.js
+|   |   |__index.css
+|   |   |__logo.svg
+|   |   |__reportWebVitals.js
+|   |   |__setUpTests.js     
+│   ├── package.json        # React dependencies
+│   ├── .env                # Environment variables
+|
+|__ package-lock.json
+|__ package.json
+└── README.md               # Main project documentation

@@ -1,0 +1,320 @@
+AIzaSyCU6AUNuasUZiiwT6PAjLbnflrnfYfNjWM
+
+
+
+from flask import Blueprint, request, jsonify
+from app import db
+from app.models import User
+from app.utils import hash_password, verify_password
+from flask_mail import Message
+from flask_bcrypt import Bcrypt
+from flask_jwt_extended import create_access_token, decode_token
+
+main = Blueprint('main', __name__)
+bcrypt=Bcrypt()
+
+@main.route('/signup', methods=['POST'])
+def signup():
+    data = request.get_json()
+    email = data.get('email')
+    password = data.get('password')
+
+    if not email or not password:
+        return jsonify({'message': 'Email and password are required'}), 400
+
+    existing_user = User.query.filter_by(email=email).first()
+    if existing_user:
+        return jsonify({'message': 'User already exists'}), 400
+
+    hashed_password = hash_password(password)
+    new_user = User(email=email, password=hashed_password)
+
+    db.session.add(new_user)
+    db.session.commit()
+
+    print(f"User Signed Up: Email: {new_user.email}, Password: {new_user.password}")
+    print("user",User.query.all())
+
+    return jsonify({'message': 'User created successfully'}), 201
+
+@main.route('/login', methods=['POST'])
+def login():
+    data = request.get_json()
+    email = data.get('email')
+    password = data.get('password')
+
+    user = User.query.filter_by(email=email).first()
+    if user and verify_password(password, user.password):
+        return jsonify({'message': 'Login successful'}), 200
+    else:
+        return jsonify({'message': 'Invalid email or password'}), 401
+
+@main.route('/forgot-password', methods=['POST'])
+def forgot_password():
+    data = request.get_json()
+    email = data.get('email')
+
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        return jsonify({'message': 'Email not found'}), 400
+
+    reset_token = create_access_token(identity=str(user.id), expires_delta=timedelta(hours=1))
+    reset_link = f"http://localhost:3000/reset-password/{reset_token}"
+
+    try:
+        msg = Message(subject='Password Reset Request',
+                      sender=os.getenv('EMAIL_USER'),
+                      recipients=[email],
+                      body=f"Click this link to reset your password, expires in 1 hour: {reset_link}")
+        mail.send(msg)
+        return jsonify({'message': 'Password reset email sent'}), 200
+    except Exception as e:
+        print(f"Error sending email: {e}")
+        
+        return jsonify({'message': 'Error sending email'}), 500
+
+@main.route('/reset-password/<token>', methods=['POST'])
+def reset_password(token):
+    try:
+        decoded_token = decode_token(token)
+        print(decoded_token)
+        user_id = decoded_token['sub']
+        user = User.query.get(user_id)
+
+        if not user:
+            return jsonify({'message': 'Invalid token or user not found'}), 404
+
+        
+
+        data = request.get_json()
+        new_password = data.get('newPassword')
+        user.password = bcrypt.generate_password_hash(new_password).decode('utf-8')
+        db.session.commit()
+
+        return jsonify({'message': 'Password has been reset successfully'}), 200
+    except Exception as e:
+        print(f"Error resetting password: {e}")
+        return jsonify({'message': 'Invalid or expired token'}), 400
+
+@main.route('/logout', methods=['POST'])
+def logout():
+    response = jsonify({'message': 'Logout successful'})
+    response.set_cookie('session', '', expires=0)  # Clear session cookie (if used)
+    return response, 200
+
+
+import React, { useState } from "react";
+import axios from "axios";
+import "./Home.css";
+
+const Home = () => {
+  const [fileName, setFileName] = useState("No file chosen");
+  const [file, setFile] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handleResumeClick = () => {
+    window.open("https://atsresume-8ggeuqnly-asiya-tabasum-shaiks-projects.vercel.app", "_blank");
+  };
+  const handleLogout = async () => {
+    try {
+      const response = await fetch("http://localhost:5000/api/logout", {
+        method: "POST",
+        credentials: "include", // Ensure cookies are sent
+      });
+
+      if (response.ok) {
+        localStorage.removeItem("user"); // Remove user session from local storage
+        // navigate("/login"); // Redirect to login page
+      } else {
+        alert("Logout failed. Please try again.");
+      }
+    } catch (error) {
+      console.error("Logout error:", error);
+      alert("Logout error. Check console for details.");
+    }
+  };
+ 
+  const handleFileChange = (event) => {
+    const selectedFile = event.target.files[0];
+    if (selectedFile) {
+      setFileName(selectedFile.name);
+      setFile(selectedFile);
+    } else {
+      setFileName("No file chosen");
+      setFile(null);
+    }
+  };
+
+  const handleUpload = async () => {
+    if (!file) {
+      alert("Please select a file first!");
+      return;
+    }
+
+    setIsUploading(true);
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("name", file.name);
+
+    try {
+      const response = await axios.post("http://127.0.0.1:8000/api/upload/", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+      alert("File uploaded successfully!");
+      console.log(response.data);
+    } catch (error) {
+      console.error("Error uploading file:", error);
+      alert("Error uploading file!");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  return (
+    <div className="outer">
+      {/* Header Section */}
+      <div className="header">
+        <div className="logo">
+          <div className="icon">
+            <span className="play-icon">▶</span>
+          </div>
+          <h1 className="title">
+            One-Click <span className="highlight">HIRE</span>
+          </h1>
+        </div>
+        <nav className="navbar">
+          <a href="/" className="nav-item">Trending</a>
+          <a href="/" className="nav-item">Applied</a>
+          <a href="/" className="nav-item">ATS Score</a>
+          <a href="/" className="nav-item">Reach Us</a>
+          <button className="logout-btn" onClick={handleLogout}>Logout</button>
+        </nav>
+      </div>
+
+      {/* Main Content Section */}
+      <div className="container">
+        {/* Upload CV Notice */}
+        <p className="upload-cv">
+          ⚡ Upload your CV – let employers choose you
+        </p>
+
+        {/* Title */}
+        <h1 className="titlee">
+          Your dream job is just one click <span className="highlightt">away!</span>
+        </h1>
+
+        {/* Job Search & Resume Upload Section */}
+        <div className="search-container">
+          {/* Upload Resume Button */}
+          <label htmlFor="resume-upload" className="upload-btn">
+            {isUploading ? "Uploading..." : "Upload Resume"}
+          </label>
+          <input
+            type="file"
+            id="resume-upload"
+            className="upload-input"
+            accept=".pdf, .docx, .jpg, .png"
+            onChange={handleFileChange}
+            disabled={isUploading}
+          />
+          {/* Display Uploaded Resume Name */}
+          <span className="resume-name">{fileName}</span>
+          <button onClick={handleUpload} className="upload-btn" disabled={isUploading}>
+            Submit
+          </button>
+        </div>
+          {/* Trending Section */}
+        <p className="trending">or</p>
+        <button className="create-resume-btn" onClick={handleResumeClick}>Create Resume</button>
+        <p className="trendingg">See How it works...</p>
+        </div>
+
+       {/* Process Explanation Section */}
+      <div className="process-section">
+        <h2 className="process-title">Super Six Steps</h2>
+        <div className="process-steps">
+          {/* Step 1 */}
+          <div className="step step-odd">
+            <img src="/images/step11.webp" alt="Step 1" className="step-image" />
+            <div className="step-content">
+              <h3>Step 1: Upload Your Resume</h3>
+              <p>
+                Upload your resume in any format! One-Click HIRE becomes your personal job hunter and scans the resume to gather the most relevant job listings in seconds.
+              </p>
+            </div>
+          </div>
+
+          {/* Step 2 */}
+          <div className="step step-even">
+            <div className="step-content">
+              <h3>Step 2: Set Your Preferences</h3>
+              <p>
+                Set your preferences (salary, location, role, etc.). Our system filters jobs such that only the best matching jobs are shown, saving hours of scrolling.
+              </p>
+            </div>
+            <img src="/images/step2.png" alt="Step 2" className="step-image" />
+          </div>
+
+          {/* Step 3 */}
+          <div className="step step-odd">
+            <img src="/images/step3.avif" alt="Step 3" className="step-image" />
+            <div className="step-content">
+              <h3>Step 3: Select a Job</h3>
+              <p>
+                Now, your resume gets a power boost with ATS compatibility! 🚀 It highlights key skills that match the job description.
+              </p>
+            </div>
+          </div>
+
+          {/* Step 4 */}
+          <div className="step step-even">
+            <div className="step-content">
+              <h3>Step 4: Auto-Fill Comes to the Rescue</h3>
+              <p>
+                No more typing out long forms—our system auto-fills the job application! You can also download or edit the enhanced resume and fill the application form manually.
+              </p>
+            </div>
+            <img src="/images/step4.png" alt="Step 4" className="step-image" />
+          </div>
+
+          {/* Step 5 */}
+          <div className="step step-odd">
+            <img src="/images/step5.jpg" alt="Step 5" className="step-image" />
+            <div className="step-content">
+              <h3>Step 5: Final Review</h3>
+              <p>
+                Double-check everything to ensure it's perfect!
+              </p>
+            </div>
+          </div>
+
+          {/* Step 6 */}
+          <div className="step step-even">
+            <div className="step-content">
+              <h3>Step 6: The Magic Button – One Click & Done!</h3>
+              <p>
+                With one click, the enhanced resume and job application are submitted! You are now one step closer to your dream job – effortlessly! 😃
+              </p>
+            </div>
+            <img src="/images/step6.webp" alt="Step 6" className="step-image" />
+          </div>
+        </div>
+      </div>
+      </div>
+  );
+};
+
+export default Home;
+
+
+ const [jobs, setJobs] = useState([]);
+
+  useEffect(() => {
+    fetch("http://localhost:5000/jobs?title=Software Engineer&location=India")
+      .then((response) => response.json())
+      .then((data) => setJobs(data.jobs))
+      .catch((error) => console.error("Error fetching jobs:", error));
+  }, []);
